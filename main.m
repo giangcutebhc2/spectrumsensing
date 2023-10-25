@@ -2,14 +2,14 @@ imageSize = [256 256];    % pixels
 sampleRate = 61.44e6;     % Hz
 numSubFrames = 40;        % corresponds to 40 ms
 frameDuration = numSubFrames*1e-3;    % seconds
-trainDir = fullfile(pwd,'DenoiseData');
+trainDir = fullfile(pwd,'TrainingData');
 
 %Load training data
 imds = imageDatastore(trainDir,'IncludeSubfolders',false,'FileExtensions','.png');
 
 classNames = ["NR" "LTE" "Noise"];
 pixelLabelID = [127 255 0];
-pxdsTruth = pixelLabelDatastore('E:\spectrumSensing\TrainingData',classNames,pixelLabelID,...
+pxdsTruth = pixelLabelDatastore(trainDir,classNames,pixelLabelID,...
   'IncludeSubfolders',false,'FileExtensions','.hdf');
 
 %Analyze Dataset Statistics
@@ -35,7 +35,7 @@ cdsVal = transform(cdsVal, @(data)preprocessTrainingData(data,imageSize));
 
 
 %% Create your model here
-%Train Deep Neural Network
+%Create a new model
 baseNetwork = 'resnet18';
 lgraph = deeplabv3plusLayers(imageSize,numel(classNames),baseNetwork);
 
@@ -48,9 +48,8 @@ lgraph = replaceLayer(lgraph,"classification",pxLayer);
 
 % Hiển thị kiến trúc của model
 analyzeNetwork(lgraph);
-%% 
 
-lgraph = lgraph_1
+
 %Select training options
 opts = trainingOptions("sgdm",...
   MiniBatchSize = 20,...
@@ -66,7 +65,13 @@ opts = trainingOptions("sgdm",...
   OutputNetwork = "best-validation-loss",...
   Plots = 'training-progress');
 
-[net,trainInfo] = trainNetwork(cdsTrain,lgraph,opts);
+trainNow = false;
+if trainNow
+  [net,trainInfo] = trainNetwork(cdsTrain,lgraph,opts); 
+else
+  load('improved_model.mat');
+  net = trainednetInfo{1,1};
+end
 
 
 %Test
@@ -78,12 +83,12 @@ pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir);
 pxdsTruth = pixelLabelDatastore(dataDir,classNames,pixelLabelID,...
   'IncludeSubfolders',false,'FileExtensions','.hdf');
 metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-%Save in file
-trainednetInfo = {};
-trainednetInfo{1,1} = net;
-trainednetInfo{1,2} = metrics;
-trainednetInfo{1,3} = trainInfo;
+% 
+% %Save in file
+% trainednetInfo = {};
+% trainednetInfo{1,1} = net;
+% trainednetInfo{1,2} = metrics;
+% trainednetInfo{1,3} = trainInfo;
 % measure performance at different SNR levels
 files = dir(fullfile(dataDir,'*.mat'));
 dataFiles = {};
@@ -101,124 +106,9 @@ pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
 pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
 metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
 
-trainednetInfo{3,1} = metrics;
-
-% measure performance at different SNR levels
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 0
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,1} = metrics;
-%---------------------------------------------------------------
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 20
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,2} = metrics;
-%---------------------------------------------------------------
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 40
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,3} = metrics;
-%---------------------------------------------------------------
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 60
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,4} = metrics;
-%---------------------------------------------------------------
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 80
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,5} = metrics;
-%---------------------------------------------------------------
-%---------------------------------------------------------------
-files = dir(fullfile(dataDir,'*.mat'));
-dataFiles = {};
-labelFiles = {};
-for p=1:numel(files)
-  load(fullfile(files(p).folder,files(p).name),'params');
-  if params.SNRdB == 100
-    [~,name] = fileparts(files(p).name);
-    dataFiles = [dataFiles; fullfile(files(p).folder,[name '.png'])]; 
-    labelFiles = [labelFiles; fullfile(files(p).folder,[name '.hdf'])]; 
-  end
-end
-imds = imageDatastore(dataFiles);
-pxdsResults = semanticseg(imds,net,"WriteLocation",tempdir, MiniBatchSize=5);
-pxdsTruth = pixelLabelDatastore(labelFiles,classNames,pixelLabelID);
-metrics = evaluateSemanticSegmentation(pxdsResults,pxdsTruth);
-
-trainednetInfo{2,6} = metrics;
-save('denoise_att_mobilenet.mat','trainednetInfo')
-
+% trainednetInfo{3,1} = metrics;
+% 
+% save('improved_model',"trainednetInfo");
 
 %Show
 imgIdx = 1;

@@ -1,5 +1,17 @@
 *.mat
+!baseline.mat
+!improved_model.mat
 *.mlpkginstall
 *.eps
+helpvisualize.m
+helperSpecSenseTrainingData.m
+helperSpecSenseSpectrogramImage.m
+helperSpecSenseNRSignal.m
+helperSpecSenseLTESignal.m
+helperSpecSenseDownloadData.m
+helperSpecSenseDisplayIdentifiedSignals.m
+helperIsPlutoSDRInstalled.m
+helpcompare.m
+createSEBlock.m
 /DenoiseData/
 /TrainingData/
